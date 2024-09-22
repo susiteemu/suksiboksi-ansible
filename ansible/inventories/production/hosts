@@ -1,22 +1,22 @@
 all:
   hosts:
-    suksiboksi:
+    havuboksi:
   children:
     pihole:
       hosts:
-        suksiboksi:
+        havuboksi:
     monitor:
       hosts:
-        suksiboksi:
+        havuboksi:
     web:
       hosts:
-        suksiboksi:
+        havuboksi:
     temperature-logger:
       hosts:
-        suksiboksi:
+        havuboksi:
     vpn-server:
       hosts:
-        suksiboksi:
+        havuboksi:
     dockerable:
       hosts:
-        suksiboksi:
+        havuboksi:

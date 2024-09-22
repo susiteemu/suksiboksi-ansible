@@ -1,0 +1,6 @@
+---
+- name: Setup Dish!Bash!Go!
+  hosts:
+    - web
+  roles:
+    - dishbashgo
