@@ -1,8 +1,8 @@
 ---
 - name: Install required packages
-  become: yes
+  become: true
   ansible.builtin.apt:
-    name: "{{ item }}"
+    name: '{{ item }}'
     state: present
   with_items:
     - acl
@@ -12,8 +12,8 @@
     - bash-completion
     - lnav
 
-- name: "Set fish as the default shell for {{ansible_user}}"
-  become: yes
+- name: 'Set fish as the default shell for {{ ansible_user }}'
+  become: true
   ansible.builtin.user:
     shell: /usr/bin/fish
-    name: "{{ansible_user}}"
+    name: '{{ ansible_user }}'

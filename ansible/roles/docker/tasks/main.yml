@@ -1,16 +1,16 @@
 ---
 - name: Ensure group "docker" exists
-  become: yes
+  become: true
   ansible.builtin.group:
     name: docker
     state: present
 
 - name: Install Docker dependencies
-  become: yes
+  become: true
   ansible.builtin.apt:
-    name: '{{item}}'
+    name: '{{ item }}'
     state: present
-    update_cache: yes
+    update_cache: true
   loop:
     - ca-certificates
     - curl
@@ -18,25 +18,25 @@
     - lsb-release
 
 - name: Add Docker's official GPG key
-  become: yes
+  become: true
   ansible.builtin.shell: |
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
 - name: Set up Docker repository
-  become: yes
+  become: true
   ansible.builtin.shell: |
     echo \
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 - name: Install Docker
-  become: yes
+  become: true
   ansible.builtin.apt:
-    name: '{{item}}'
+    name: '{{ item }}'
     state: latest
-    update_cache: yes
+    update_cache: true
   loop:
     - docker-ce
     - docker-ce-cli
@@ -44,20 +44,20 @@
     - docker-compose-plugin
 
 - name: Start Docker service and set it to start on boot
-  service:
+  ansible.builtin.service:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Install docker-compose
-  become: yes
-  get_url:
-    url: 'https://github.com/docker/compose/releases/download/{{DOCKER_COMPOSE_VERSION}}/docker-compose-linux-{{BUILD_ARCHITECTURE}}'
+  become: true
+  ansible.builtin.get_url:
+    url: 'https://github.com/docker/compose/releases/download/{{ DOCKER_COMPOSE_VERSION }}/docker-compose-linux-{{ BUILD_ARCHITECTURE }}'
     dest: /usr/local/bin/docker-compose
     mode: u+x,g+x,o+x
 
 - name: Create network (ignores errors; check carefully if this task returns an error)
-  become: yes
+  become: true
   ansible.builtin.shell: |
-    docker network create {{docker.network}}
-  ignore_errors: yes
+    docker network create {{ docker.network }}
+  ignore_errors: true

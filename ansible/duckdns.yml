@@ -1,0 +1,6 @@
+---
+- name: Setup Duckdns.org updater
+  hosts:
+    - monitor
+  roles:
+    - duckdns_updater

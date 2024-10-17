@@ -1,42 +1,42 @@
 ---
 - name: Add Telegraf's official GPG key
-  become: yes
-  apt_key:
+  become: true
+  ansible.builtin.apt_key:
     url: https://repos.influxdata.com/influxdb.key
     state: present
 
 - name: Add Telegraf repository
-  become: yes
-  apt_repository:
-    repo: "deb https://repos.influxdata.com/{{OS_ID}} {{OS_VERSION_CODENAME}} stable"
+  become: true
+  ansible.builtin.apt_repository:
+    repo: 'deb https://repos.influxdata.com/{{ OS_ID }} {{ OS_VERSION_CODENAME }} stable'
     state: present
 
 - name: Install Telegraf
-  become: yes
+  become: true
   ansible.builtin.apt:
-    name: "{{item}}"
+    name: '{{ item }}'
     state: latest
-    update_cache: yes
+    update_cache: true
   loop:
     - telegraf
 
 - name: Modify default configuration to do very little
-  become: yes
-  shell: |
+  become: true
+  ansible.builtin.shell: |
     telegraf --output-filter false --input-filter false config > /etc/telegraf/telegraf.conf
   tags:
     - never
 
 - name: Create config
-  become: yes
-  shell: |
+  become: true
+  ansible.builtin.shell: |
     telegraf config > telegraf.conf
 
 # TODO Add wanted inputs and outputs
 
 - name: Start Telegraf service and set it to start on boot
-  become: yes
-  service:
+  become: true
+  ansible.builtin.service:
     name: telegraf
     state: restarted
-    enabled: yes
+    enabled: true

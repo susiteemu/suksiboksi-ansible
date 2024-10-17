@@ -1,13 +1,13 @@
 ---
 - name: Set facts
   ansible.builtin.set_fact:
-    user_name: ruuvitag
-    group_name: ruuvitag
-    home_dir: '/home/ruuvitag'
+    user_name: ruuvitag_img
+    group_name: ruuvitag_img
+    home_dir: '/home/ruuvitag_img'
     repo_folder: 'temperatures'
-    repo_subfolder: 'ruuvitag-reader'
+    repo_subfolder: 'infoscreen-img-gen'
 
-- name: Ensure user exists with name "{{ user_name }}"
+- name: Ensure user "{{ user_name }}" exists
   ansible.builtin.include_role:
     name: user_creator
   vars:
@@ -15,7 +15,7 @@
     user_groups: '{{ group_name }}'
     home: '{{ home_dir }}'
 
-- name: Install ruuvitag-sensor
+- name: Install ruuvitag-img
   ansible.builtin.include_role:
     name: git_installer
   vars:
@@ -30,7 +30,7 @@
   become: true
   ansible.builtin.systemd:
     state: stopped
-    name: ruuvitag_reader.timer
+    name: ruuvitag_img.timer
     enabled: true
   ignore_errors: true
 
@@ -41,15 +41,6 @@
     /usr/local/go/bin/go build .
   args:
     chdir: '{{ home_dir }}/{{ repo_subfolder }}'
-
-- name: Create config.yml
-  become: true
-  ansible.builtin.copy:
-    dest: '{{ home_dir }}/{{ repo_subfolder }}/config.yml'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0770'
-    content: '{{ ruuvi.external_configuration | to_nice_yaml }}'
 
 - name: Create .env
   no_log: true
@@ -64,34 +55,33 @@
       INFLUXDB_TOKEN: {{ influxdb.api_token }}
       INFLUXDB_BUCKET: {{ influxdb.bucket }}
       INFLUXDB_ORG: {{ influxdb.org }}
+      SENSORS_IN_ORDER={{ ruuvi_img.sensors_in_order }}
+      {{ ruuvi.external_configuration | to_nice_yaml }}
 
 - name: Create systemd service unit
   become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/system/ruuvitag_reader.service
+    dest: /etc/systemd/system/ruuvitag_img.service
     content: |
       [Unit]
-      Description=Service reading data from Ruuvitags
+      Description=Service for reading temperatures from Influxdb and generating a image
       After=multi-user.target
       [Service]
       Type=oneshot
       Restart=no
-      ExecStart={{ home_dir }}/{{ repo_subfolder }}/ruuvitag-reader
-      User={{ user_name }}
-      CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
-      AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+      ExecStart={{ home_dir }}/{{ repo_subfolder }}/infoscreen-img-gen /home/caddy/infoscreen/kindle.png
       [Install]
       WantedBy=multi-user.target
 
 - name: Create systemd timer unit
   become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/system/ruuvitag_reader.timer
+    dest: /etc/systemd/system/ruuvitag_img.timer
     content: |
       [Unit]
-      Description=Start Ruuvitag reader service
+      Description=Start Image generation service
       [Timer]
-      OnCalendar=*:0/3
+      OnCalendar=*:0/1
       [Install]
       WantedBy=timers.target
 
@@ -100,5 +90,5 @@
   ansible.builtin.systemd:
     daemon_reload: true
     state: restarted
-    name: ruuvitag_reader.timer
+    name: ruuvitag_img.timer
     enabled: true

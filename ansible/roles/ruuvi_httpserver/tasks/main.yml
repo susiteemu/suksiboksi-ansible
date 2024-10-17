@@ -1,0 +1,74 @@
+---
+- name: Set facts
+  ansible.builtin.set_fact:
+    user_name: ruuvitag_httpserver
+    group_name: ruuvitag_httpserver
+    home_dir: '/home/ruuvitag_httpserver'
+    repo_folder: 'temperatures'
+    repo_subfolder: 'ruuvitag-httpserver'
+
+- name: Ensure user with correct settings exists
+  ansible.builtin.include_role:
+    name: docker_enabled_user_creator
+  vars:
+    name: '{{ user_name }}'
+    user_group: '{{ group_name }}'
+    home: '{{ home_dir }}'
+
+- name: Clone repository
+  ansible.builtin.include_role:
+    name: git_installer
+  vars:
+    git_repo_url: '{{ git_repositories.temperatures }}'
+    git_repo_name: '{{ repo_folder }}'
+    git_repo_subfolder: '{{ repo_subfolder }}'
+    git_repo_destination: '{{ home_dir }}'
+    git_repo_destination_owner: '{{ user_name }}'
+    git_repo_destination_group: '{{ group_name }}'
+
+- name: Build the application
+  become: true
+  become_user: '{{ user_name }}'
+  ansible.builtin.shell: |
+    /usr/local/go/bin/go build .
+  args:
+    chdir: '{{ home_dir }}/{{ repo_subfolder }}'
+
+- name: Create .env
+  no_log: true
+  become: true
+  ansible.builtin.copy:
+    dest: '{{ home_dir }}/{{ repo_subfolder }}/.env'
+    owner: '{{ user_name }}'
+    group: '{{ group_name }}'
+    mode: '0640'
+    content: |
+      DOCKER_NETWORK={{ docker.network }}
+      INFLUXDB_URL: http://{{ docker.influxdb.service_address }}
+      INFLUXDB_TOKEN: {{ influxdb.api_token }}
+      INFLUXDB_BUCKET: {{ influxdb.bucket }}
+      INFLUXDB_ORG: {{ influxdb.org }}
+
+- name: Create config.yml
+  become: true
+  ansible.builtin.copy:
+    dest: '{{ home_dir }}/{{ repo_subfolder }}/config.yml'
+    owner: '{{ user_name }}'
+    group: '{{ group_name }}'
+    mode: '0770'
+    content: '{{ ruuvi.external_configuration | to_nice_yaml }}'
+
+- name: Stop ruuvi-httpserver
+  become: true
+  become_user: '{{ user_name }}'
+  community.docker.docker_compose_v2:
+    project_src: '{{ home_dir }}/{{ repo_subfolder }}'
+    state: absent
+
+- name: Start ruuvi-httpserver
+  become: true
+  become_user: '{{ user_name }}'
+  community.docker.docker_compose_v2:
+    build: always
+    project_src: '{{ home_dir }}/{{ repo_subfolder }}'
+    state: present

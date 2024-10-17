@@ -1,6 +1,8 @@
 ---
-- name: Setup ruuvi utilities
+- name: Setup Ruuvitag utilities
   hosts:
     - monitor
   roles:
     - ruuvi
+    - ruuvi_img
+    - ruuvi_httpserver

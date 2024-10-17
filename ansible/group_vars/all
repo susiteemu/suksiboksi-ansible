@@ -9,5 +9,7 @@ git_repositories:
     grafana: git@github.com:susiteemu/suksiboksi-grafana.git
     influxdb: git@github.com:susiteemu/suksiboksi-influxdb.git
     pihole: git@github.com:susiteemu/suksiboksi-pihole.git
-    ruuvi: git@github.com:susiteemu/suksiboksi-ruuvitag-sensor.git
+    ruuvi: git@github.com:susiteemu/go-ruuvitag-reader.git
     dbg: git@github.com:susiteemu/dish-bash-go.git
+    ruuvi_img: git@github.com:susiteemu/go-kindle-img.git
+    temperatures: git@github.com:susiteemu/temperatures.git
