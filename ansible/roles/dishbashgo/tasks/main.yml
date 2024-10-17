@@ -1,0 +1,72 @@
+---
+- name: Set facts
+  set_fact:
+    user_name: dbg
+    group_name: dbg
+    home_dir: '/home/dbg'
+    repo_folder: 'dbg'
+
+- name: Ensure user with correct settings exists
+  ansible.builtin.include_role:
+    name: docker_enabled_user_creator
+  vars:
+    name: '{{user_name}}'
+    user_group: '{{group_name}}'
+    home: '{{home_dir}}'
+
+- name: Clone Dish!Bash!Go!
+  ansible.builtin.include_role:
+    name: git_installer
+  vars:
+    git_repo_url: '{{git_repositories.dbg}}'
+    git_repo_name: '{{repo_folder}}'
+    git_repo_destination: '{{home_dir}}'
+    git_repo_destination_owner: '{{user_name}}'
+    git_repo_destination_group: '{{group_name}}'
+    git_stay_local: true
+
+- name: Build Dish!Bash!Go!
+  delegate_to: '{{ansible_controller}}'
+  ansible.builtin.shell: |
+    cd {{playbook_dir}}/bin/{{repo_folder}}
+    GOOS="linux" GOARCH="amd64" go build .
+  register: run
+  changed_when: run.rc != 0
+
+- name: Copy binary
+  become: true
+  ansible.builtin.copy:
+    src: '{{playbook_dir}}/bin/{{repo_folder}}/dish-bash-go'
+    dest: '{{home_dir}}'
+    owner: '{{user_name}}'
+    group: '{{group_name}}'
+    mode: '0740'
+
+- name: Copy html resources
+  become: true
+  ansible.builtin.copy:
+    src: '{{item}}'
+    dest: '{{home_dir}}'
+    owner: '{{user_name}}'
+    group: '{{group_name}}'
+    mode: '0640'
+  with_fileglob:
+    - '{{playbook_dir}}/bin/{{repo_folder}}/*.html'
+
+- name: Copy assets resources
+  become: true
+  ansible.builtin.copy:
+    src: '{{playbook_dir}}/bin/{{repo_folder}}/assets'
+    dest: '{{home_dir}}'
+    owner: '{{user_name}}'
+    group: '{{group_name}}'
+    mode: '0640'
+
+- name: Copy css resources
+  become: true
+  ansible.builtin.copy:
+    src: '{{playbook_dir}}/bin/{{repo_folder}}/css'
+    dest: '{{home_dir}}'
+    owner: '{{user_name}}'
+    group: '{{group_name}}'
+    mode: '0640'
