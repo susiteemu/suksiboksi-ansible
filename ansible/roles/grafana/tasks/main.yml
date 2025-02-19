@@ -4,7 +4,7 @@
     user_name: grafana
     group_name: grafana
     home_dir: '/home/grafana'
-    repo_folder: 'grafana'
+    app_dir: '/home/grafana/grafana'
 
 - name: Ensure user with correct settings exists
   ansible.builtin.include_role:
@@ -14,39 +14,23 @@
     user_group: '{{ group_name }}'
     home: '{{ home_dir }}'
 
-- name: Install Grafana
-  ansible.builtin.include_role:
-    name: git_installer
-  vars:
-    git_repo_url: '{{ git_repositories.grafana }}'
-    git_repo_name: '{{ repo_folder }}'
-    git_repo_destination: '{{ home_dir }}'
-    git_repo_destination_owner: '{{ user_name }}'
-    git_repo_destination_group: '{{ group_name }}'
-
-- name: Create .env file
+- name: Copy templated files to host
   no_log: true
   become: true
-  ansible.builtin.copy:
-    dest: '{{ home_dir }}/{{ repo_folder }}/.env'
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '{{ app_dir }}/{{ item }}'
     owner: '{{ user_name }}'
     group: '{{ group_name }}'
     mode: '0640'
-    content: |
-      GF_SERVER_ROOT_URL=https://{{ caddy.grafana.duckdns_domain }}
-      GF_SMTP_ENABLED=false
-      GF_SMTP_HOST=smtp.gmail.com:587
-      GF_SMTP_USER={{ mail.sender }}
-      GF_SMTP_PASSWORD={{ mail.password }}
-      GF_SMTP_FROM_ADDRESS={{ mail.sender }}
-      GF_SMTP_FROM_NAME="Grafana at {{ inventory_hostname }}"
-      DOCKER_NETWORK={{ docker.network }}
+  with_items:
+    - 'docker-compose.yml'
 
 - name: Stop Grafana
   become: true
   become_user: '{{ user_name }}'
   community.docker.docker_compose_v2:
-    project_src: '{{ home_dir }}/{{ repo_folder }}'
+    project_src: '{{ app_dir }}'
     state: absent
 
 - name: Start Grafana
@@ -54,5 +38,5 @@
   become_user: '{{ user_name }}'
   community.docker.docker_compose_v2:
     build: always
-    project_src: '{{ home_dir }}/{{ repo_folder }}'
+    project_src: '{{ app_dir }}'
     state: present

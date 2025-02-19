@@ -1,10 +1,9 @@
 ---
 - name: Set facts
   ansible.builtin.set_fact:
-    user_name: pi-hole
-    group_name: pi-hole
-    home_dir: '/home/pi-hole'
-    app_dir: '/home/pi-hole/pi-hole'
+    user_name: postgresql
+    group_name: postgresql
+    home_dir: '/home/postgresql'
 
 - name: Ensure user with correct settings exists
   ansible.builtin.include_role:
@@ -15,35 +14,32 @@
     home: '{{ home_dir }}'
 
 - name: Copy templated files to host
-  no_log: true
   become: true
   ansible.builtin.template:
     src: '{{ item }}.j2'
-    dest: '{{ app_dir }}/{{ item }}'
+    dest: '{{ home_dir }}/{{ item }}'
     owner: '{{ user_name }}'
     group: '{{ group_name }}'
     mode: '0640'
   with_items:
     - 'docker-compose.yml'
 
-- name: Disable DNS stub resolver
-  become: yes
-  ansible.builtin.shell: |
-    sudo sed -r -i.orig 's/#?DNSStubListener=yes/DNSStubListener=no/g' /etc/systemd/resolved.conf
-    sudo sh -c 'rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf'
-    systemctl restart systemd-resolved
+- name: Create data volume
+  become: true
+  become_user: '{{ user_name }}'
+  community.docker.docker_volume:
+    name: postgresql_data
 
-- name: Stop pi-hole
+- name: Stop postgresql
   become: true
   become_user: '{{ user_name }}'
   community.docker.docker_compose_v2:
-    project_src: '{{ app_dir }}'
+    project_src: '{{ home_dir }}'
     state: absent
 
-- name: Start pi-hole
+- name: Start postgresql
   become: true
   become_user: '{{ user_name }}'
   community.docker.docker_compose_v2:
+    project_src: '{{ home_dir }}'
     build: always
-    project_src: '{{ app_dir }}'
-    state: present

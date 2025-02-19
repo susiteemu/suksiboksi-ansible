@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  postgresql:
+    image: postgres
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: {{ postgresql.user }}
+      POSTGRES_PASSWORD: {{ postgresql.password }}
+      POSTGRES_DB: {{ postgresql.db }}
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+
+volumes:
+  postgresql_data:
+    external: true
+
+networks:
+  default:
+    external:
+      name: {{ docker.network }}
+
+
+

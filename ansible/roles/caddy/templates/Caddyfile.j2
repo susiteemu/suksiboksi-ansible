@@ -1,0 +1,84 @@
+
+# Caddyfile V2.0 config file
+
+{{ caddy.grafana.duckdns_domain }} {
+  tls {
+    dns duckdns {
+      api_token {{ caddy.grafana.duckdns_token }}
+      override_domain {{ caddy.grafana.duckdns_domain }}
+    }
+  }
+  encode zstd gzip
+
+  header / {
+      # Enable cross-site filter (XSS) and tell browser to block detected attacks
+      X-XSS-Protection "1; mode=block"
+      # Disallow the site to be rendered within a frame (clickjacking protection)
+      X-Frame-Options "DENY"
+      # Prevent search engines from indexing (optional)
+      X-Robots-Tag "none"
+      # Server name remove
+      -Server
+   }
+
+  reverse_proxy {{ caddy.services.grafana }} {
+      header_up X-Real-IP {remote_host}
+  }
+}
+
+{{ caddy.pihole.domain }} {
+  reverse_proxy {{ caddy.services.pihole }}
+}
+
+
+{{ caddy.dishbashgo.domain }} {
+  tls {
+    dns cloudflare {
+      zone_token {{ caddy.dishbashgo.zone_token }}
+      api_token {{ caddy.dishbashgo.api_token }}
+    }
+  }
+
+  encode zstd gzip
+  header / {
+      # Enable cross-site filter (XSS) and tell browser to block detected attacks
+      X-XSS-Protection "1; mode=block"
+      # Disallow the site to be rendered within a frame (clickjacking protection)
+      X-Frame-Options "DENY"
+      # Prevent search engines from indexing (optional)
+      X-Robots-Tag "none"
+      # Server name remove
+      -Server
+   }
+
+  reverse_proxy {{ caddy.services.dishbashgo }} {
+      header_up X-Real-IP {remote_host}
+  }
+}
+
+http://localhost, http://{{ caddy.localhost_name }}, http://{{ caddy.localhost_ip }} {
+
+  file_server {
+    browse
+    hide .* _*
+  }
+  redir /infoscreen /infoscreen/
+  handle_path /infoscreen/* {
+    root * {{ infoscreen_inside_container_dir }}
+  }
+
+  handle_path /influxdb* {
+    rewrite * {path}
+    reverse_proxy {{ caddy.services.influxdb }}
+  }
+
+  handle_path /ruuvitag* {
+    rewrite * {path}
+    reverse_proxy {{ caddy.services.ruuvitag_httpserver }}
+  }
+
+  handle {
+    respond "Not found" 404
+  }
+
+}

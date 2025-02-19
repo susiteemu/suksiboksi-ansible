@@ -56,6 +56,10 @@
       INFLUXDB_BUCKET: {{ influxdb.bucket }}
       INFLUXDB_ORG: {{ influxdb.org }}
       SENSORS_IN_ORDER={{ ruuvi_img.sensors_in_order }}
+      COORDS_LAT={{ ruuvi_img.coords_lat }}
+      COORDS_LON={{ ruuvi_img.coords_lon }}
+      OPENWEATHERMAP_API_KEY={{ ruuvi_img.openweathermap_api_key }}
+      POSTGRESQL_CONN_URL: {{ postgresql.conn_url }}
       {{ ruuvi.external_configuration | to_nice_yaml }}
 
 - name: Create systemd service unit
@@ -69,7 +73,9 @@
       [Service]
       Type=oneshot
       Restart=no
-      ExecStart={{ home_dir }}/{{ repo_subfolder }}/infoscreen-img-gen /home/caddy/infoscreen/kindle.png
+      Environment="CONFIG={{ home_dir }}/{{ repo_subfolder }}/"
+      Environment="OUTPUT=/home/caddy/infoscreen/"
+      ExecStart={{ home_dir }}/{{ repo_subfolder }}/infoscreen-img-gen
       [Install]
       WantedBy=multi-user.target
 
@@ -81,7 +87,7 @@
       [Unit]
       Description=Start Image generation service
       [Timer]
-      OnCalendar=*:0/1
+      OnCalendar=*:0/2
       [Install]
       WantedBy=timers.target
 

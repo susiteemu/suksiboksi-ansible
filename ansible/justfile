@@ -1,0 +1,59 @@
+# List all targets
+targets:
+    just -l
+
+# Run Caddy playbook
+caddy:
+    @ansible-playbook -i inventories/production -D caddy.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Common playbook
+common:
+    @ansible-playbook -i inventories/production -D common.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Docker playbook
+docker:
+    @ansible-playbook -i inventories/production -D docker.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Dish! Bash! Go! playbook
+dish-bash-go:
+    @ansible-playbook -i inventories/production -D dish-bash-go.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Duckdns playbook
+duckdns:
+    @ansible-playbook -i inventories/production -D duckdns.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Grafana playbook
+grafana:
+    @ansible-playbook -i inventories/production -D grafana.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Hardening playbook
+hardening:
+    @ansible-playbook -i inventories/production -D hardening.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run postgresql playbook
+postgresql:
+    @ansible-playbook -i inventories/production -D postgresql.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Pi-Hole playbook
+pihole:
+    @ansible-playbook -i inventories/production -D pihole.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Ruuvi Reader playbook
+ruuvi-reader:
+    @ansible-playbook -i inventories/production -D ruuvi-reader.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Ruuvi HTTP Server playbook
+ruuvi-http:
+    @ansible-playbook -i inventories/production -D ruuvi-http-server.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Ruuvi Infoscreen Image playbook
+ruuvi-img:
+    @ansible-playbook -i inventories/production -D ruuvi-img.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run Telegraf playbook
+telegraf:
+    @ansible-playbook -i inventories/production -D telegraf.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+# Run VPN playbook
+vpn:
+    @ansible-playbook -i inventories/production -D vpn.yml --vault-password-file ./scripts/vault-pass --ask-become-pass

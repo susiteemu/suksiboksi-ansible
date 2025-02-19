@@ -23,98 +23,52 @@
     git_repo_destination: '{{ home_dir }}'
     git_repo_destination_owner: '{{ user_name }}'
     git_repo_destination_group: '{{ group_name }}'
-    git_stay_local: true
 
-- name: Build Dish! Bash! Go!
-  delegate_to: '{{ ansible_controller }}'
+- name: Build the application
+  become: true
+  become_user: '{{ user_name }}'
   ansible.builtin.shell: |
-    cd {{ playbook_dir }}/bin/{{ repo_folder }}
-    GOOS="linux" GOARCH="amd64" go build .
-  register: run
-  changed_when: run.rc != 0
+    /usr/local/go/bin/go build .
+  args:
+    chdir: '{{ home_dir }}/{{ repo_folder }}'
+
+- name: Stop systemd unit
+  become: true
+  ansible.builtin.systemd:
+    state: stopped
+    name: dbg.service
+  ignore_errors: true
 
 - name: Backup database
   become: true
   ansible.builtin.copy:
     remote_src: true
-    src: '{{ home_dir }}/dishbashgo.db'
-    dest: '{{ home_dir }}/dishbashgo.db.bck'
+    src: '{{ home_dir }}/{{ repo_folder }}/dishbashgo.db'
+    dest: '{{ home_dir }}/{{ repo_folder }}/dishbashgo.db.bck'
     owner: '{{ user_name }}'
     group: '{{ group_name }}'
     mode: 'preserve'
 
-- name: Copy binary
+- name: Create systemd service unit
   become: true
   ansible.builtin.copy:
-    src: '{{ playbook_dir }}/bin/{{ repo_folder }}/dish-bash-go'
-    dest: '{{ home_dir }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0740'
-
-- name: Copy html resources
-  become: true
-  ansible.builtin.copy:
-    src: '{{ item }}'
-    dest: '{{ home_dir }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
-  with_fileglob:
-    - '{{ playbook_dir }}/bin/{{ repo_folder }}/*.html'
-
-- name: Copy assets resources
-  become: true
-  ansible.builtin.copy:
-    src: '{{ playbook_dir }}/bin/{{ repo_folder }}/assets'
-    dest: '{{ home_dir }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
-
-- name: Copy css resources
-  become: true
-  ansible.builtin.copy:
-    src: '{{ playbook_dir }}/bin/{{ repo_folder }}/css'
-    dest: '{{ home_dir }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
-
-- name: Copy files for Docker
-  become: true
-  ansible.builtin.copy:
-    src: '{{ item }}'
-    dest: '{{ home_dir }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
-  with_items:
-    - '{{ playbook_dir }}/bin/{{ repo_folder }}/Dockerfile'
-    - '{{ playbook_dir }}/bin/{{ repo_folder }}/docker-compose.yml'
-
-- name: Create .env
-  no_log: true
-  become: true
-  ansible.builtin.copy:
-    dest: '{{ home_dir }}/.env'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
+    dest: /etc/systemd/system/dbg.service
     content: |
-      DOCKER_NETWORK={{ docker.network }}
+      [Unit]
+      Description=Service for running Dish! Bash! Go! application
+      After=syslog.target
+      [Service]
+      WorkingDirectory={{ home_dir }}/{{ repo_folder}}
+      Type=simple
+      Restart=on-failure
+      ExecStart={{ home_dir }}/{{ repo_folder }}/dish-bash-go
+      [Install]
+      WantedBy=multi-user.target
 
-- name: Stop Dish! Bash! Go!
+- name: Start systemd unit
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    project_src: '{{ home_dir }}'
-    state: absent
-
-- name: Start Dish! Bash! Go!
-  become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    build: always
-    project_src: '{{ home_dir }}'
-    state: present
+  ansible.builtin.systemd:
+    daemon_reload: true
+    state: restarted
+    name: dbg.service
+    enabled: true

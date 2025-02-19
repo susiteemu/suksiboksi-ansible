@@ -1,0 +1,6 @@
+---
+- name: Setup Ruuvitag utilities
+  hosts:
+    - monitor
+  roles:
+    - ruuvi_img

@@ -1,36 +1,44 @@
 ---
-- name: Add Telegraf's official GPG key
-  become: true
-  ansible.builtin.apt_key:
-    url: https://repos.influxdata.com/influxdb.key
-    state: present
-
-- name: Add Telegraf repository
-  become: true
-  ansible.builtin.apt_repository:
-    repo: 'deb https://repos.influxdata.com/{{ OS_ID }} {{ OS_VERSION_CODENAME }} stable'
-    state: present
-
 - name: Install Telegraf
   become: true
-  ansible.builtin.apt:
-    name: '{{ item }}'
-    state: latest
-    update_cache: true
-  loop:
-    - telegraf
-
-- name: Modify default configuration to do very little
-  become: true
   ansible.builtin.shell: |
-    telegraf --output-filter false --input-filter false config > /etc/telegraf/telegraf.conf
-  tags:
-    - never
+    curl --silent --location -O \
+    https://repos.influxdata.com/influxdata-archive.key \
+    && echo "943666881a1b8d9b849b74caebf02d3465d6beb716510d86a39f6c8e8dac7515  influxdata-archive.key" \
+    | sha256sum -c - && cat influxdata-archive.key \
+    | gpg --dearmor \
+    | sudo tee /etc/apt/trusted.gpg.d/influxdata-archive.gpg > /dev/null \
+    && echo 'deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main' \
+    | sudo tee /etc/apt/sources.list.d/influxdata.list
+    sudo apt-get update && sudo apt-get install telegraf
+  when: 1 < 0
 
-- name: Create config
+- name: Stop systemd unit
   become: true
-  ansible.builtin.shell: |
-    telegraf config > telegraf.conf
+  ansible.builtin.systemd:
+    state: stopped
+    name: telegraf
+  ignore_errors: true
+
+- name: Copy config to host
+  no_log: true
+  become: true
+  ansible.builtin.template:
+    src: 'telegraf.conf.j2'
+    dest: '/etc/telegraf/telegraf.conf'
+    owner: 'telegraf'
+    group: 'telegraf'
+    mode: '0640'
+
+- name: Copy default config to host
+  no_log: true
+  become: true
+  ansible.builtin.template:
+    src: 'telegraf.j2'
+    dest: '/etc/default/telegraf'
+    owner: 'telegraf'
+    group: 'telegraf'
+    mode: '0640'
 
 # TODO Add wanted inputs and outputs
 

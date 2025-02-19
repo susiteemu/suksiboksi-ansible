@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  caddy:
+    container_name: caddy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - {{ index_html_dir }}:{{ index_html_inside_container_dir }}
+      - {{ infoscreen_dir }}:{{ infoscreen_inside_container_dir }}
+    environment:
+      TZ: Europe/Helsinki
+      ACME_AGREE: 'true' # agree to Let's Encrypt Subscriber Agreement
+      EMAIL: '{{ caddy.email }}'
+    cap_add:
+      - NET_ADMIN
+    network_mode: host
+
+volumes:
+  caddy_data:
+    external: true

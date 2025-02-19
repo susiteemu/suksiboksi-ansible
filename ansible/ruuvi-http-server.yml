@@ -3,6 +3,6 @@
   hosts:
     - monitor
   roles:
-    - ruuvi
-    - ruuvi_img
+    # - ruuvi
+    # - ruuvi_img
     - ruuvi_httpserver

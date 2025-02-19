@@ -4,7 +4,11 @@
     user_name: caddy
     group_name: caddy
     home_dir: '/home/caddy'
-    repo_folder: 'caddy'
+    app_dir: '/home/caddy/caddy'
+    infoscreen_dir: '/home/caddy/infoscreen'
+    infoscreen_inside_container_dir: '/usr/share/caddy/infoscreen'
+    index_html_dir: '/var/www/html'
+    index_html_inside_container_dir: '/usr/share/caddy/html'
 
 - name: Ensure user with correct settings exists
   ansible.builtin.include_role:
@@ -14,46 +18,42 @@
     user_group: '{{ group_name }}'
     home: '{{ home_dir }}'
 
-- name: Install caddy
-  ansible.builtin.include_role:
-    name: git_installer
-  vars:
-    git_repo_url: '{{ git_repositories.caddy }}'
-    git_repo_name: '{{ repo_folder }}'
-    git_repo_destination: '{{ home_dir }}'
-    git_repo_destination_owner: '{{ user_name }}'
-    git_repo_destination_group: '{{ group_name }}'
-
-- name: Create .env
-  no_log: true
+- name: Copy static files to host
   become: true
+  no_log: true
   ansible.builtin.copy:
-    dest: '{{ home_dir }}/{{ repo_folder }}/.env'
+    src: '{{ item }}'
+    dest: '{{ app_dir }}/'
     owner: '{{ user_name }}'
     group: '{{ group_name }}'
     mode: '0640'
-    content: |
-      GRAFANA_DUCKDNS_TOKEN={{ caddy.grafana.duckdns_token }}
-      GRAFANA_DUCKDNS_DOMAIN={{ caddy.grafana.duckdns_domain }}
-      GRAFANA_TARGET_SERVICE={{ docker.grafana.service_address }}
-      PIHOLE_DOMAIN={{ caddy.pihole.domain }}
-      PIHOLE_TARGET_SERVICE={{ docker.pihole.service_address }}
-      INFLUXDB_TARGET_SERVICE={{ docker.influxdb.service_address }}
-      DISH_BASH_GO_ZONE_TOKEN={{ caddy.dishbashgo.zone_token }}
-      DISH_BASH_GO_API_TOKEN={{ caddy.dishbashgo.api_token }}
-      DISH_BASH_GO_DOMAIN={{ caddy.dishbashgo.domain }}
-      DISH_BASH_GO_TARGET_SERVICE={{ docker.dishbashgo.service_address }}
-      RUUVITAG_HTTPSERVER_TARGET_SERVICE={{ docker.ruuvitag_httpserver.service_address }}
-      LOCALHOST_NAME={{ caddy.localhost_name }}
-      LOCALHOST_IP={{ caddy.localhost_ip }}
-      DOCKER_NETWORK={{ docker.network }}
-      EMAIL={{ caddy.email }}
+  with_items:
+    - Dockerfile
+
+- name: Copy templated files to host
+  become: true
+  no_log: true
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '{{ app_dir }}/{{ item }}'
+    owner: '{{ user_name }}'
+    group: '{{ group_name }}'
+    mode: '0640'
+  with_items:
+    - Caddyfile
+    - 'docker-compose.yml'
+
+- name: Create data volume
+  become: true
+  become_user: '{{ user_name }}'
+  community.docker.docker_volume:
+    name: caddy_data
 
 - name: Stop Caddy
   become: true
   become_user: '{{ user_name }}'
   community.docker.docker_compose_v2:
-    project_src: '{{ home_dir }}/{{ repo_folder }}'
+    project_src: '{{ app_dir }}'
     state: absent
 
 - name: Start Caddy
@@ -61,5 +61,5 @@
   become_user: '{{ user_name }}'
   community.docker.docker_compose_v2:
     build: always
-    project_src: '{{ home_dir }}/{{ repo_folder }}'
+    project_src: '{{ app_dir }}'
     state: present
