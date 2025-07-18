@@ -12,7 +12,7 @@ services:
       - '8765:80/tcp'
     environment:
       TZ: 'Europe/Helsinki'
-      FTLCONF_webserver_api_password-: '{{ pihole.admin_password }}'
+      FTLCONF_webserver_api_password: '{{ pihole.admin_password }}'
       FTLCONF_dns_listeningMode: 'all'
     # Volumes store your data between container upgrades
     volumes:
@@ -20,8 +20,8 @@ services:
       - './etc-dnsmasq.d/:/etc/dnsmasq.d/'
     # Recommended but not required (DHCP needs NET_ADMIN)
     #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
-    cap_add:
-      - NET_ADMIN
+    # cap_add:
+    #  - NET_ADMIN
     restart: unless-stopped
 
 networks:
