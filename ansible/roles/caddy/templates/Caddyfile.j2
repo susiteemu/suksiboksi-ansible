@@ -1,13 +1,8 @@
 
 # Caddyfile V2.0 config file
 
-{{ caddy.grafana.duckdns_domain }} {
-  tls {
-    dns duckdns {
-      api_token {{ caddy.grafana.duckdns_token }}
-      override_domain {{ caddy.grafana.duckdns_domain }}
-    }
-  }
+{{ caddy.grafana.domain }} {
+  tls internal
   encode zstd gzip
 
   header / {
@@ -32,14 +27,9 @@
 
 
 {{ caddy.dishbashgo.domain }} {
-  tls {
-    dns cloudflare {
-      zone_token {{ caddy.dishbashgo.zone_token }}
-      api_token {{ caddy.dishbashgo.api_token }}
-    }
-  }
-
+  tls internal
   encode zstd gzip
+
   header / {
       # Enable cross-site filter (XSS) and tell browser to block detected attacks
       X-XSS-Protection "1; mode=block"
