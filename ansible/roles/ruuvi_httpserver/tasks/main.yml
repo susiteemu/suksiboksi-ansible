@@ -43,15 +43,6 @@
       DOCKER_NETWORK={{ podman.network }}
       POSTGRESQL_CONN_URL: {{ postgresql.docker.conn_url }}
 
-- name: Create config.yml
-  become: true
-  ansible.builtin.copy:
-    dest: '{{ src_dir }}/{{ repo_subfolder }}/config.yml'
-    owner: '{{ podman_user }}'
-    group: '{{ podman_user }}'
-    mode: '0770'
-    content: '{{ ruuvi.external_configuration | to_nice_yaml }}'
-
 - name: Build the application
   become: true
   become_user: '{{ podman_user }}'
@@ -78,7 +69,6 @@
 
         COPY ruuvitag-httpserver /server/
         COPY .env /server/
-        COPY config.yml /server/
 
         RUN chmod +x /server/ruuvitag-httpserver
         CMD ["./ruuvitag-httpserver"]
