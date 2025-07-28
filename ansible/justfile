@@ -38,17 +38,9 @@ postgresql:
 pihole:
     @ansible-playbook -i inventories/production -D pihole.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
 
-# Run Ruuvi Reader playbook
-ruuvi-reader:
-    @ansible-playbook -i inventories/production -D ruuvi-reader.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
-
 # Run Ruuvi HTTP Server playbook
 ruuvi-http:
     @ansible-playbook -i inventories/production -D ruuvi-http-server.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
-
-# Run Ruuvi Infoscreen Image playbook
-ruuvi-img:
-    @ansible-playbook -i inventories/production -D ruuvi-img.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
 
 # Run Telegraf playbook
 telegraf:
