@@ -36,10 +36,6 @@
     mode: '0640'
     content: |
       DOCKER_NETWORK={{ docker.network }}
-      INFLUXDB_URL: http://{{ docker.influxdb.service_address }}
-      INFLUXDB_TOKEN: {{ influxdb.api_token }}
-      INFLUXDB_BUCKET: {{ influxdb.bucket }}
-      INFLUXDB_ORG: {{ influxdb.org }}
       POSTGRESQL_CONN_URL: {{ postgresql.docker.conn_url }}
 
 - name: Create config.yml
