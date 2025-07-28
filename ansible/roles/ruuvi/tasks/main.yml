@@ -60,10 +60,6 @@
     group: '{{ group_name }}'
     mode: '0640'
     content: |
-      INFLUXDB_URL: {{ influxdb.url }}
-      INFLUXDB_TOKEN: {{ influxdb.api_token }}
-      INFLUXDB_BUCKET: {{ influxdb.bucket }}
-      INFLUXDB_ORG: {{ influxdb.org }}
       POSTGRESQL_CONN_URL: {{ postgresql.conn_url }}
       RUUVI_HTTP_SERVER_ADD_MEASUREMENT_API_URL: {{ ruuvi_http.api }}
 

@@ -6,7 +6,7 @@
     state: present
   with_items: '{{ user_groups }}'
 
-- name: Create user "{{ name }}"
+- name: Create user "{{ name }}" with home
   become: true
   ansible.builtin.user:
     name: '{{ name }}'
@@ -14,3 +14,14 @@
     state: present
     home: '{{ home }}'
     system: true
+  when: home is defined
+
+- name: Create user "{{ name }}" without home
+  become: true
+  ansible.builtin.user:
+    name: '{{ name }}'
+    groups: '{{ user_groups }}'
+    state: present
+    create_home: false
+    system: true
+  when: home is not defined

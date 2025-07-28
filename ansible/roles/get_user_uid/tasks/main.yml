@@ -1,0 +1,9 @@
+---
+- name: Get UID of user
+  ansible.builtin.command: "getent passwd {{ get_uid_user_name }}"
+  register: user_passwd
+  changed_when: user_passwd.rc != 0
+
+- name: Set user_uid fact
+  ansible.builtin.set_fact:
+    user_uid: "{{ user_passwd.stdout.split(':')[2] }}"

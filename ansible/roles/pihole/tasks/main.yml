@@ -1,49 +1,51 @@
 ---
+- name: Stop pihole
+  become: true
+  ansible.builtin.systemd:
+    name: container-pihole.service
+    state: stopped
+  ignore_errors: true
+
 - name: Set facts
   ansible.builtin.set_fact:
-    user_name: pi-hole
-    group_name: pi-hole
-    home_dir: '/home/pi-hole'
-    app_dir: '/home/pi-hole/pi-hole'
+    app_dir: '/etc/pihole'
 
-- name: Ensure user with correct settings exists
-  ansible.builtin.include_role:
-    name: docker_enabled_user_creator
-  vars:
-    name: '{{ user_name }}'
-    user_group: '{{ group_name }}'
-    home: '{{ home_dir }}'
-
-- name: Copy templated files to host
-  no_log: true
+- name: Create directory volumes for pihole
   become: true
-  ansible.builtin.template:
-    src: '{{ item }}.j2'
-    dest: '{{ app_dir }}/{{ item }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
-  with_items:
-    - 'docker-compose.yml'
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - '{{ app_dir }}/etc-pihole'
+    - '{{ app_dir }}/etc-dnsmasq.d'
 
-- name: Disable DNS stub resolver
-  become: yes
-  ansible.builtin.shell: |
-    sudo sed -r -i.orig 's/#?DNSStubListener=yes/DNSStubListener=no/g' /etc/systemd/resolved.conf
-    sudo sh -c 'rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf'
-    systemctl restart systemd-resolved
-
-- name: Stop pi-hole
+- name: Create pihole container
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    project_src: '{{ app_dir }}'
-    state: absent
-
-- name: Start pi-hole
-  become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    build: always
-    project_src: '{{ app_dir }}'
+  containers.podman.podman_container:
+    name: pihole
+    image: docker.io/pihole/pihole:latest
     state: present
+    recreate: false
+    volumes:
+      - '{{ app_dir }}/etc-pihole:/etc/pihole:Z'
+      - '{{ app_dir }}/etc-dnsmasq.d:/etc/dnsmasq.d:Z'
+    network: host
+    env:
+      TZ: 'Europe/Helsinki'
+      FTLCONF_webserver_api_password: '{{ pihole.admin_password }}'
+      FTLCONF_webserver_port: '8080'
+      FTLCONF_dns_listeningMode: 'all'
+    generate_systemd:
+      path: '/etc/systemd/system/'
+      restart_policy: on-failure
+      stop_timeout: 120
+      names: true
+
+- name: Ensure pihole container is started and enabled
+  become: true
+  ansible.builtin.systemd:
+    name: container-pihole.service
+    enabled: true
+    state: started
+    daemon_reload: true

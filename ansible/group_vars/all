@@ -1,14 +1,9 @@
-OS_ID: "ubuntu"
-OS_VERSION_CODENAME: "noble"
-BUILD_ARCHITECTURE: "x86_64"
-DOCKER_COMPOSE_VERSION: "v2.29.3"
 ansible_controller: 127.0.0.1
 
+podman_user: podman
+podman_user_home: /home/podman
+
 git_repositories:
-    caddy: git@github.com:susiteemu/suksiboksi-caddy.git
-    grafana: git@github.com:susiteemu/suksiboksi-grafana.git
-    influxdb: git@github.com:susiteemu/suksiboksi-influxdb.git
-    pihole: git@github.com:susiteemu/suksiboksi-pihole.git
     ruuvi: git@github.com:susiteemu/go-ruuvitag-reader.git
     dbg: git@github.com:susiteemu/dish-bash-go.git
     ruuvi_img: git@github.com:susiteemu/go-kindle-img.git

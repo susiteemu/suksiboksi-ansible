@@ -1,45 +1,50 @@
 ---
-- name: Set facts
-  ansible.builtin.set_fact:
-    user_name: postgresql
-    group_name: postgresql
-    home_dir: '/home/postgresql'
-
-- name: Ensure user with correct settings exists
-  ansible.builtin.include_role:
-    name: docker_enabled_user_creator
-  vars:
-    name: '{{ user_name }}'
-    user_group: '{{ group_name }}'
-    home: '{{ home_dir }}'
-
-- name: Copy templated files to host
+- name: Stop postgresql
   become: true
-  ansible.builtin.template:
-    src: '{{ item }}.j2'
-    dest: '{{ home_dir }}/{{ item }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
-  with_items:
-    - 'docker-compose.yml'
+  become_user: '{{ podman_user }}'
+  ansible.builtin.systemd:
+    name: container-postgresql.service
+    state: stopped
+    scope: user
+  ignore_errors: true
 
 - name: Create data volume
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_volume:
+  become_user: '{{ podman_user }}'
+  containers.podman.podman_volume:
+    state: present
     name: postgresql_data
 
-- name: Stop postgresql
+- name: Create postgresql container
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    project_src: '{{ home_dir }}'
-    state: absent
+  become_user: '{{ podman_user }}'
+  containers.podman.podman_container:
+    name: postgresql
+    image: docker.io/postgres:latest
+    state: present
+    recreate: true
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    network: '{{ podman.network }}'
+    ports:
+      - 5432:5432
+    shm_size: 128mb
+    env:
+      POSTGRES_USER: '{{ postgresql.user }}'
+      POSTGRES_PASSWORD: '{{ postgresql.password }}'
+      POSTGRES_DB: '{{ postgresql.db }}'
+    generate_systemd:
+      path: '{{ podman_user_home }}/.config/systemd/user/'
+      restart_policy: on-failure
+      stop_timeout: 120
+      names: true
 
-- name: Start postgresql
+- name: Ensure postgresql container is started and enabled
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    project_src: '{{ home_dir }}'
-    build: always
+  become_user: '{{ podman_user }}'
+  ansible.builtin.systemd:
+    name: container-postgresql
+    enabled: true
+    state: started
+    daemon_reload: true
+    scope: user
