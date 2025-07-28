@@ -40,6 +40,7 @@
     group: '{{ podman_user }}'
     mode: '0640'
     content: |
+      DOCKER_NETWORK={{ podman.network }}
       POSTGRESQL_CONN_URL: {{ postgresql.docker.conn_url }}
 
 - name: Create config.yml

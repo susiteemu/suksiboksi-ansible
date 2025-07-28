@@ -13,6 +13,7 @@ common:
 # Run Docker playbook
 podman:
     @ansible-playbook -i inventories/staging -D podman.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
 # Run Dish! Bash! Go! playbook
 dish-bash-go:
     @ansible-playbook -i inventories/staging -D dish-bash-go.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
@@ -33,15 +34,7 @@ postgresql:
 pihole:
     @ansible-playbook -i inventories/staging -D pihole.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
 
-# Run Ruuvi Reader playbook
-ruuvi-reader:
-    @ansible-playbook -i inventories/staging -D ruuvi-reader.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
-
 # Run Ruuvi HTTP Server playbook
 ruuvi-http:
     @ansible-playbook -i inventories/staging -D ruuvi-http-server.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
-
-# Run Ruuvi Infoscreen Image playbook
-ruuvi-img:
-    @ansible-playbook -i inventories/staging -D ruuvi-img.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
 
