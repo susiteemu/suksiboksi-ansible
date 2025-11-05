@@ -27,7 +27,6 @@
     git_repo_destination_group: '{{ group_name }}'
 
 - name: Create .env
-  no_log: true
   become: true
   ansible.builtin.copy:
     dest: '{{ home_dir }}/{{ repo_subfolder }}/.env'
@@ -36,16 +35,10 @@
     mode: '0640'
     content: |
       DOCKER_NETWORK={{ docker.network }}
-      POSTGRESQL_CONN_URL: {{ postgresql.docker.conn_url }}
-
-- name: Create config.yml
-  become: true
-  ansible.builtin.copy:
-    dest: '{{ home_dir }}/{{ repo_subfolder }}/config.yml'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0770'
-    content: '{{ ruuvi.external_configuration | to_nice_yaml }}'
+      POSTGRESQL_CONN_URL={{ postgresql.docker.conn_url }}
+      MQTT_BROKER={{ mqtt.broker_url }}
+      MQTT_USER_NAME={{ mqtt.username }}
+      MQTT_USER_PASSWORD={{ mqtt.password }}
 
 - name: Build the application
   become: true
