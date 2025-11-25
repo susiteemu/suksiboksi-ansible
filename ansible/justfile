@@ -30,6 +30,10 @@ hardening:
 postgresql:
     @ansible-playbook -i inventories/staging -D postgresql.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
 
+# Run Pi-Hole playbook
+pihole:
+    @ansible-playbook -i inventories/staging -D pihole.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
 # Run Ruuvi HTTP Server playbook
 ruuvi-http:
     @ansible-playbook -i inventories/staging -D ruuvi-http-server.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
