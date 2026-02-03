@@ -1,6 +1,0 @@
----
-- name: Setup Telegraf
-  hosts:
-    - all
-  roles:
-    - telegraf

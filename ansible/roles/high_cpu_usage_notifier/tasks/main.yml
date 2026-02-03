@@ -3,32 +3,41 @@
   become: true
   ansible.builtin.systemd:
     state: stopped
-    name: duckdns_updater.timer
+    name: high_cpu_notifier.timer
     enabled: true
   ignore_errors: true
+
+- name: Copy high CPU notifier script
+  become: true
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '/usr/local/bin//{{ item }}'
+    mode: '0700'
+  with_items:
+    - high_cpu_notifier.sh
 
 - name: Create systemd service unit
   become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/system/duckdns_updater.service
+    dest: /etc/systemd/system/high_cpu_notifier.service
     content: |
       [Unit]
-      Description=Updates duckdns.org domains
+      Description=Checks and alerts high CPU usage
       After=multi-user.target
       [Service]
       Type=oneshot
       Restart=no
-      ExecStart=curl https://www.duckdns.org/update?domains={{ duckdns.domains }}&token={{ duckdns.token }}
+      ExecStart=/bin/bash /usr/local/bin/high_cpu_notifier.sh
       [Install]
       WantedBy=multi-user.target
 
 - name: Create systemd timer unit
   become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/system/duckdns_updater.timer
+    dest: /etc/systemd/system/high_cpu_notifier.timer
     content: |
       [Unit]
-      Description=Start Duckdns Updater service
+      Description=Start High CPU usage notifier service
       [Timer]
       OnCalendar=*:0/3
       [Install]
@@ -39,5 +48,5 @@
   ansible.builtin.systemd:
     daemon_reload: true
     state: restarted
-    name: duckdns_updater.timer
+    name: high_cpu_notifier.timer
     enabled: true

@@ -1,0 +1,7 @@
+---
+- name: Setup Podman
+  hosts:
+    - all
+  roles:
+    - podman
+

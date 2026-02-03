@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# CONFIGURATION
+THRESHOLD=80.0        # percentage (e.g. alert if >80%)
+NTFY_URL="https://ntfy.sh/{{ ntfy.high_cpu_topic }}"
+
+# Read CPU stats
+read cpu user nice system idle iowait irq softirq steal guest < /proc/stat
+total1=$((user + nice + system + idle + iowait + irq + softirq + steal))
+
+sleep 1
+
+read cpu user2 nice2 system2 idle2 iowait2 irq2 softirq2 steal2 guest2 < /proc/stat
+total2=$((user2 + nice2 + system2 + idle2 + iowait2 + irq2 + softirq2 + steal2))
+
+idle_diff=$((idle2 - idle))
+total_diff=$((total2 - total1))
+
+# Compute CPU usage percentage
+cpu_usage=$(awk -v idle_diff="$idle_diff" -v total_diff="$total_diff" 'BEGIN { printf "%.2f", 100 * (1 - idle_diff / total_diff) }')
+
+# Check against threshold
+exceeds=$(awk -v u="$cpu_usage" -v t="$THRESHOLD" 'BEGIN { print (u > t) ? 1 : 0 }')
+
+if [ "$exceeds" -eq 1 ]; then
+    message="⚠️ High CPU usage detected: ${cpu_usage}%"
+    curl -d "$message" "$NTFY_URL"
+fi

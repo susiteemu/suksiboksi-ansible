@@ -38,4 +38,3 @@
   loop:
     - root
     - '{{ ansible_user }}'
-

@@ -1,7 +1,15 @@
 ---
+# python3-libdnf5 is a requirement for ansible.builtin.dnf
+- name: Install python3-libdnf5
+  become: true
+  command: |
+    sudo dnf install -y python3-libdnf5
+  register: result
+  changed_when: result.rc != 0
+
 - name: Install required packages
   become: true
-  ansible.builtin.apt:
+  ansible.builtin.dnf:
     name: '{{ item }}'
     state: present
   with_items:
@@ -11,9 +19,29 @@
     - fish
     - bash-completion
     - lnav
+    - python3-pip
+    - golang
 
 - name: 'Set fish as the default shell for {{ ansible_user }}'
   become: true
   ansible.builtin.user:
     shell: /usr/bin/fish
     name: '{{ ansible_user }}'
+
+- name: Set timezone to Europe/Helsinki
+  become: true
+  ansible.builtin.command: timedatectl set-timezone Europe/Helsinki
+  register: tz_output
+  changed_when: tz_output.rc != 0
+
+- name: Enable NTP
+  become: true
+  ansible.builtin.command: timedatectl set-ntp yes
+  register: ntp_output
+  changed_when: ntp_output.rc != 0
+
+- name: Synchronize time
+  become: true
+  ansible.builtin.systemd_service:
+    name: chronyd
+    state: restarted

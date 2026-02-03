@@ -1,1 +1,3 @@
 ---
+ansible_user: ansible
+arch: arm64v8

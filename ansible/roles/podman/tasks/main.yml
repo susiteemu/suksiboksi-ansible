@@ -1,0 +1,69 @@
+---
+- name: Create podman user
+  become: true
+  ansible.builtin.user:
+    name: "{{ podman_user }}"
+    system: true
+    create_home: true
+    shell: /bin/bash
+
+- name: Ensure podman user has systemd-journal group
+  become: true
+  ansible.builtin.user:
+    user: "{{ podman_user }}"
+    groups: systemd-journal
+    append: yes
+
+- name: Check user lingering status
+  ansible.builtin.stat:
+    path: /var/lib/systemd/linger/{{ podman_user }}
+  register: user_lingering
+
+- name: Enable lingering for podman user
+  become: true
+  ansible.builtin.command: "loginctl enable-linger {{ podman_user }}"
+  register: podman_linger
+  changed_when: podman_linger.rc != 0
+  when: not user_lingering.stat.exists
+
+- name: Append exports to podman user .bashrc
+  become: true
+  become_user: '{{ podman_user }}'
+  ansible.builtin.lineinfile:
+    path: $HOME/.bashrc
+    line: |
+      export XDG_RUNTIME_DIR=/run/user/$(id -u)
+      export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
+
+- name: Create container config dirs
+  become: true
+  ansible.builtin.file:
+    path: "{{ podman_user_home }}/{{ item }}"
+    state: directory
+    owner: "{{ podman_user }}"
+    group: "{{ podman_user }}"
+    mode: "0755"
+  loop:
+    - .config/containers
+    - .local/share/containers
+    - .config/containers/systemd
+
+- name: Ensure subuid and subgid mappings for podman user
+  become: true
+  lineinfile:
+    path: "{{ item.path }}"
+    line: "{{ podman_user }}:100000:65536"
+    create: true
+  loop:
+    - { path: '/etc/subuid' }
+    - { path: '/etc/subgid' }
+  vars:
+    podman_user: podman
+
+- name: Create network
+  become: true
+  become_user: "{{ podman_user }}"
+  containers.podman.podman_network:
+    name: "{{ podman.network }}"
+    internal: false
+    recreate: false

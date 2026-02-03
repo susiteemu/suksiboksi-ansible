@@ -1,65 +1,73 @@
 ---
+- name: Stop caddy
+  become: true
+  ansible.builtin.systemd:
+    name: container-caddy.service
+    state: stopped
+  ignore_errors: true
+
 - name: Set facts
   ansible.builtin.set_fact:
-    user_name: caddy
-    group_name: caddy
-    home_dir: '/home/caddy'
-    app_dir: '/home/caddy/caddy'
-    infoscreen_dir: '/home/caddy/infoscreen'
+    app_dir: '/etc/caddy'
+    infoscreen_dir: '/etc/caddy/infoscreen'
     infoscreen_inside_container_dir: '/usr/share/caddy/infoscreen'
-    index_html_dir: '/var/www/html'
+    index_html_dir: '/etc/caddy/www/html'
     index_html_inside_container_dir: '/usr/share/caddy/html'
-
-- name: Ensure user with correct settings exists
-  ansible.builtin.include_role:
-    name: docker_enabled_user_creator
-  vars:
-    name: '{{ user_name }}'
-    user_group: '{{ group_name }}'
-    home: '{{ home_dir }}'
-
-- name: Copy static files to host
-  become: true
-  no_log: true
-  ansible.builtin.copy:
-    src: '{{ item }}'
-    dest: '{{ app_dir }}/'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
-    mode: '0640'
-  with_items:
-    - Dockerfile
 
 - name: Copy templated files to host
   become: true
-  no_log: true
   ansible.builtin.template:
     src: '{{ item }}.j2'
     dest: '{{ app_dir }}/{{ item }}'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
     mode: '0640'
   with_items:
     - Caddyfile
-    - 'docker-compose.yml'
+
+- name: Create directory volumes for caddy
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - '{{ index_html_dir }}'
+    - '{{ infoscreen_dir }}'
 
 - name: Create data volume
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_volume:
+  containers.podman.podman_volume:
+    state: present
     name: caddy_data
 
-- name: Stop Caddy
+- name: Create caddy container
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    project_src: '{{ app_dir }}'
-    state: absent
-
-- name: Start Caddy
-  become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    build: always
-    project_src: '{{ app_dir }}'
+  containers.podman.podman_container:
+    name: caddy
+    image: docker.io/caddy:2
     state: present
+    recreate: true
+    volumes:
+      - '{{ app_dir }}/Caddyfile:/etc/caddy/Caddyfile'
+      - caddy_data:/data
+      - '{{ index_html_dir }}:{{ index_html_inside_container_dir }}'
+      - '{{ infoscreen_dir }}:{{ infoscreen_inside_container_dir }}'
+    network: host
+    env:
+      TZ: 'Europe/Helsinki'
+      ACME_AGREE: 'true' # agree to Let's Encrypt Subscriber Agreement
+      EMAIL: '{{ caddy.email }}'
+    cap_add:
+      - NET_ADMIN
+    generate_systemd:
+      path: '/etc/systemd/system/'
+      restart_policy: on-failure
+      stop_timeout: 120
+      names: true
+
+- name: Ensure caddy container is started and enabled
+  become: true
+  ansible.builtin.systemd:
+    name: container-caddy.service
+    enabled: true
+    state: started
+    daemon_reload: true

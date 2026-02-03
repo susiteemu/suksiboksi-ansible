@@ -1,19 +1,18 @@
 ---
 - name: Set facts
   ansible.builtin.set_fact:
-    user_name: ruuvitag_httpserver
-    group_name: ruuvitag_httpserver
-    home_dir: '/home/ruuvitag_httpserver'
+    src_dir: '/usr/local/src'
     repo_folder: 'temperatures'
     repo_subfolder: 'ruuvitag-httpserver'
 
-- name: Ensure user with correct settings exists
-  ansible.builtin.include_role:
-    name: docker_enabled_user_creator
-  vars:
-    name: '{{ user_name }}'
-    user_group: '{{ group_name }}'
-    home: '{{ home_dir }}'
+- name: Stop ruuvi-httpserver
+  become: true
+  become_user: '{{ podman_user }}'
+  ansible.builtin.systemd:
+    name: container-ruuvitag-httpserver.service
+    state: stopped
+    scope: user
+  ignore_errors: true
 
 - name: Clone repository
   ansible.builtin.include_role:
@@ -22,45 +21,86 @@
     git_repo_url: '{{ git_repositories.temperatures }}'
     git_repo_name: '{{ repo_folder }}'
     git_repo_subfolder: '{{ repo_subfolder }}'
-    git_repo_destination: '{{ home_dir }}'
-    git_repo_destination_owner: '{{ user_name }}'
-    git_repo_destination_group: '{{ group_name }}'
+    git_repo_destination: '{{ src_dir }}'
+    git_repo_destination_owner: '{{ podman_user }}'
+    git_repo_destination_group: '{{ podman_user }}'
+
+- name: Remove .git
+  become: true
+  ansible.builtin.file:
+    path: '{{ src_dir }}/{{ repo_subfolder }}/.git'
+    state: absent
 
 - name: Create .env
   become: true
   ansible.builtin.copy:
-    dest: '{{ home_dir }}/{{ repo_subfolder }}/.env'
-    owner: '{{ user_name }}'
-    group: '{{ group_name }}'
+    dest: '{{ src_dir }}/{{ repo_subfolder }}/.env'
+    owner: '{{ podman_user }}'
+    group: '{{ podman_user }}'
     mode: '0640'
     content: |
-      DOCKER_NETWORK={{ docker.network }}
-      POSTGRESQL_CONN_URL={{ postgresql.docker.conn_url }}
+      DOCKER_NETWORK={{ podman.network }}
+      POSTGRESQL_CONN_URL: {{ postgresql.docker.conn_url }}
       MQTT_BROKER={{ mqtt.broker_url }}
       MQTT_USER_NAME={{ mqtt.username }}
       MQTT_USER_PASSWORD={{ mqtt.password }}
 
 - name: Build the application
   become: true
-  become_user: '{{ user_name }}'
+  become_user: '{{ podman_user }}'
   ansible.builtin.shell: |
-    /usr/local/go/bin/go build .
+    CGO_ENABLED=0 GOOS=linux go build -a -o ruuvitag-httpserver main.go
   args:
-    chdir: '{{ home_dir }}/{{ repo_subfolder }}'
+    chdir: '{{ src_dir }}/{{ repo_subfolder }}'
+  register: ruuvi_http_build
+  changed_when: ruuvi_http_build.rc != 0
 
-- name: Stop ruuvi-httpserver
+- name: Build ruuvitag-httpserver image
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    project_src: '{{ home_dir }}/{{ repo_subfolder }}'
-    state: absent
+  become_user: '{{ podman_user }}'
+  containers.podman.podman_image:
+    name: ruuvitag_httpserver
+    force: true
+    path: '{{ src_dir }}/{{ repo_subfolder }}'
+    build:
+      format: oci
+      container_file: |
+        FROM docker.io/{{ arch }}/alpine:latest
 
-- name: Start ruuvi-httpserver
+        WORKDIR /server
+
+        COPY ruuvitag-httpserver /server/
+        COPY .env /server/
+
+        RUN chmod +x /server/ruuvitag-httpserver
+        CMD ["./ruuvitag-httpserver"]
+
+  register: ruuvi_http_image
+  failed_when: ruuvi_http_image.image[0].Id is not defined
+
+- name: Create ruuvitag-httpserver container
   become: true
-  become_user: '{{ user_name }}'
-  community.docker.docker_compose_v2:
-    build: always
-    pull: always
-    recreate: always
-    project_src: '{{ home_dir }}/{{ repo_subfolder }}'
+  become_user: '{{ podman_user }}'
+  containers.podman.podman_container:
+    name: ruuvitag-httpserver
+    image: '{{ ruuvi_http_image.image[0].Id }}'
     state: present
+    recreate: true
+    network: '{{ podman.network }}'
+    ports:
+      - '2323:1323/tcp'
+    generate_systemd:
+      path: '{{ podman_user_home }}/.config/systemd/user/'
+      restart_policy: on-failure
+      stop_timeout: 120
+      names: true
+
+- name: Ensure ruuvitag-httpserver container is started and enabled
+  become: true
+  become_user: '{{ podman_user }}'
+  ansible.builtin.systemd:
+    name: container-ruuvitag-httpserver
+    enabled: true
+    state: started
+    daemon_reload: true
+    scope: user

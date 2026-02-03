@@ -1,6 +1,6 @@
 ---
-- name: Setup Grafana
+- name: Setup Beszel
   hosts:
     - monitor
   roles:
-    - grafana
+    - beszel

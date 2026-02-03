@@ -57,11 +57,6 @@ http://localhost, http://{{ caddy.localhost_name }}, http://{{ caddy.localhost_i
     root * {{ infoscreen_inside_container_dir }}
   }
 
-  handle_path /influxdb* {
-    rewrite * {path}
-    reverse_proxy {{ caddy.services.influxdb }}
-  }
-
   handle_path /ruuvitag* {
     rewrite * {path}
     reverse_proxy {{ caddy.services.ruuvitag_httpserver }}
