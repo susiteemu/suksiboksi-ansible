@@ -24,7 +24,7 @@
     state: present
     recreate: true
     volumes:
-      - postgresql_data:/var/lib/postgresql/data
+      - postgresql_mount:/var/lib/postgresql
     network: '{{ podman.network }}'
     ports:
       - 5432:5432

@@ -1,0 +1,6 @@
+---
+- name: Setup High CPU notifier
+  hosts:
+    - monitor
+  roles:
+    - high_cpu_usage_notifier

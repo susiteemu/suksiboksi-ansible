@@ -42,6 +42,9 @@
     content: |
       DOCKER_NETWORK={{ podman.network }}
       POSTGRESQL_CONN_URL: {{ postgresql.docker.conn_url }}
+      MQTT_BROKER={{ mqtt.broker_url }}
+      MQTT_USER_NAME={{ mqtt.username }}
+      MQTT_USER_PASSWORD={{ mqtt.password }}
 
 - name: Build the application
   become: true

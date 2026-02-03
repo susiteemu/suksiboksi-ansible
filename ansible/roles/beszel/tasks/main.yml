@@ -1,0 +1,86 @@
+- name: Define default variables (can be overridden)
+  set_fact:
+    beszel_hub_data: "/opt/beszel/hub_data"
+    beszel_hub_socket: "/opt/beszel/hub_socket"
+    beszel_agent_data: "/opt/beszel/agent_data"
+    beszel_hub_port: "8090"
+    beszel_hub_image: "docker.io/henrygd/beszel:latest"
+  run_once: true
+
+- name: Create Beszel directories with correct ownership
+  become: true
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ podman_user }}"
+    group: "{{ podman_user }}"
+    mode: "0755"
+  loop:
+    - { path: "{{ beszel_hub_data }}" }
+    - { path: "{{ beszel_hub_socket }}" }
+    - { path: "{{ beszel_agent_data }}" }
+
+- name: Pull Beszel hub image
+  become: true
+  containers.podman.podman_image:
+    name: "{{ beszel_hub_image.split(':')[0] }}"
+    tag: "{{ beszel_hub_image.split(':')[1] }}"
+    pull: true
+
+- name: Create Beszel hub container (paused)
+  become: true
+  become_user: '{{ podman_user }}'
+  containers.podman.podman_container:
+    name: beszel-hub
+    image: "{{ beszel_hub_image }}"
+    state: created               # only create, we’ll start via systemd
+    restart_policy: unless-stopped
+    ports:
+      - "{{ beszel_hub_port }}:{{ beszel_hub_port }}"
+    volumes:
+      - "{{ beszel_hub_data }}:/beszel_data"
+      - "{{ beszel_hub_socket }}:/beszel_socket"
+    log_driver: journald
+    generate_systemd:
+      path: '{{ podman_user_home }}/.config/systemd/user/'
+      names: true
+      restart_policy: always
+      after: network-online.target
+      wants: network-online.target
+      # The following ensures the unit is enabled for the user, not root:
+      # (we’ll copy it to the user’s systemd dir later)
+  register: hub_create
+
+- name: Reload systemd daemon (pick up new unit)
+  become: true
+  systemd:
+    daemon_reload: true
+
+- name: Enable & start Beszel hub systemd unit (system‑wide)
+  become: true
+  become_user: '{{ podman_user }}'
+  systemd:
+    name: container-beszel-hub
+    enabled: true
+    state: started
+    daemon_reload: true
+    scope: user
+
+- name: Wait for hub UI to respond
+  uri:
+    url: "http://127.0.0.1:{{ beszel_hub_port }}/_/"
+    status_code: 200
+    timeout: 30
+  register: hub_up
+  retries: 10
+  delay: 3
+  until: hub_up is succeeded
+
+- name: Install Beszel agent
+  become: true
+  ansible.builtin.import_role:
+    name: community.beszel.agent
+  vars:
+    agent_public_key: "{{  beszel.key }}"
+    agent_token: "{{ beszel.token }}"
+    agent_hub_url: "http://127.0.0.1:{{ beszel_hub_port }}"

@@ -1,0 +1,52 @@
+---
+- name: Stop systemd unit
+  become: true
+  ansible.builtin.systemd:
+    state: stopped
+    name: high_cpu_notifier.timer
+    enabled: true
+  ignore_errors: true
+
+- name: Copy high CPU notifier script
+  become: true
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '/usr/local/bin//{{ item }}'
+    mode: '0700'
+  with_items:
+    - high_cpu_notifier.sh
+
+- name: Create systemd service unit
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/high_cpu_notifier.service
+    content: |
+      [Unit]
+      Description=Checks and alerts high CPU usage
+      After=multi-user.target
+      [Service]
+      Type=oneshot
+      Restart=no
+      ExecStart=/bin/bash /usr/local/bin/high_cpu_notifier.sh
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Create systemd timer unit
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/high_cpu_notifier.timer
+    content: |
+      [Unit]
+      Description=Start High CPU usage notifier service
+      [Timer]
+      OnCalendar=*:0/3
+      [Install]
+      WantedBy=timers.target
+
+- name: Start systemd unit timer
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+    state: restarted
+    name: high_cpu_notifier.timer
+    enabled: true

@@ -1,6 +1,0 @@
----
-- name: Setup pihole
-  hosts:
-    - pihole
-  roles:
-    - pihole
