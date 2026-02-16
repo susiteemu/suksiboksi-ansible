@@ -1,6 +1,0 @@
----
-- name: Setup Postgresql
-  hosts:
-    - monitor
-  roles:
-    - postgresql

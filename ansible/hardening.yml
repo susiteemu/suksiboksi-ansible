@@ -4,4 +4,3 @@
     - all
   roles:
     - sshd
-    - ufw

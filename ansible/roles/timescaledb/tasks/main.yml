@@ -1,9 +1,9 @@
 ---
-- name: Stop postgresql
+- name: Stop timescaledb
   become: true
   become_user: '{{ podman_user }}'
   ansible.builtin.systemd:
-    name: container-postgresql.service
+    name: container-timescaledb.service
     state: stopped
     scope: user
   ignore_errors: true
@@ -13,22 +13,21 @@
   become_user: '{{ podman_user }}'
   containers.podman.podman_volume:
     state: present
-    name: postgresql_data
+    name: timescaledbha_data
 
-- name: Create postgresql container
+- name: Create timescaledb container
   become: true
   become_user: '{{ podman_user }}'
   containers.podman.podman_container:
-    name: postgresql
-    image: docker.io/postgres:latest
+    name: timescaledb
+    image: docker.io/timescale/timescaledb-ha:pg18
     state: present
-    recreate: true
+    recreate: false
     volumes:
-      - postgresql_mount:/var/lib/postgresql
+      - timescaledb_mount:/var/lib/timescaledb
     network: '{{ podman.network }}'
     ports:
       - 5432:5432
-    shm_size: 128mb
     env:
       POSTGRES_USER: '{{ postgresql.user }}'
       POSTGRES_PASSWORD: '{{ postgresql.password }}'
@@ -39,11 +38,11 @@
       stop_timeout: 120
       names: true
 
-- name: Ensure postgresql container is started and enabled
+- name: Ensure timescaledb container is started and enabled
   become: true
   become_user: '{{ podman_user }}'
   ansible.builtin.systemd:
-    name: container-postgresql
+    name: container-timescaledb
     enabled: true
     state: started
     daemon_reload: true

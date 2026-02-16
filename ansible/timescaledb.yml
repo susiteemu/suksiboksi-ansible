@@ -1,0 +1,6 @@
+---
+- name: Setup TimescaleDB
+  hosts:
+    - monitor
+  roles:
+    - timescaledb
