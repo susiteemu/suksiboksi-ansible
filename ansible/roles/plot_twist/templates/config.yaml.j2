@@ -1,0 +1,114 @@
+# Plot Twist Configuration
+# Copy this file to config.yaml and adjust for your setup
+
+database:
+  # Database type: "postgres" or "mock"
+  # Use "mock" for demo/development with fake data
+  type: postgres
+
+  # PostgreSQL connection settings
+  postgres:
+    host: localhost
+    port: 5432
+    database: {{ postgresql.db }}
+    user: {{ postgresql.user }}
+    password: {{ postgresql.password_conn_str }}
+    sslmode: disable # disable, require, verify-ca, verify-full
+
+  # SQL queries for fetching sensor data
+  # Customize these to match your database schema
+  queries:
+    # Query to fetch the latest measurement per sensor
+    # Must return columns in this exact order:
+    #   sensor_id, name, type, value, unit, timestamp
+    #
+    # - sensor_id: unique identifier for the sensor (string)
+    # - name: human-readable name for display (string)
+    # - type: "temperature" or "humidity" for grouping (string)
+    # - value: the measurement value (float)
+    # - unit: unit of measurement, e.g., "°C", "%" (string)
+    # - timestamp: when the measurement was taken (timestamp)
+    latest_measurements: |
+      WITH RankedMeasurements AS (
+          SELECT
+            d.id as sensor_id,
+            d.label as name,
+            m.temperature as temperature,
+            m.humidity as humidity,
+            m.created_at as created_at,
+            ROW_NUMBER() OVER (PARTITION BY d.mac ORDER BY m.created_at DESC) AS rn
+          FROM measurement m
+          LEFT JOIN device d ON d.id = m.device_id
+          WHERE m.created_at >= NOW() - INTERVAL '30 minutes'
+      )
+
+      SELECT
+        sensor_id,
+        name,
+        'temperature' as type,
+        temperature as value,
+        '°C' as unit,
+        created_at as timestamp
+      FROM RankedMeasurements
+      WHERE rn <= 1
+
+      UNION ALL
+
+      SELECT
+        sensor_id,
+        name,
+        'humidity' as type,
+        humidity as value,
+        '%' as unit,
+        created_at as timestamp
+      FROM RankedMeasurements
+      WHERE rn <= 1
+
+      ORDER BY sensor_id, timestamp DESC;
+
+    # Query to fetch historical data for all sensors
+    # Receives two parameters: $1 = start time, $2 = end time (timestamps)
+    # Must return columns in this exact order:
+    #   sensor_id, name, type, value, unit, timestamp
+    # Results should be ordered by sensor_id, then timestamp for best performance
+    history: |
+      WITH downsampled_temp AS (
+           SELECT
+               m.device_id,
+               lttb(m.created_at, m.temperature, 400) AS sampled
+           FROM measurement m
+           WHERE m.created_at >= $1 AND m.created_at <= $2
+           GROUP BY m.device_id
+       ),
+       downsampled_hum AS (
+           SELECT
+               m.device_id,
+               lttb(m.created_at, m.humidity, 400) AS sampled
+           FROM measurement m
+           WHERE m.created_at >= $1 AND m.created_at <= $2
+           GROUP BY m.device_id
+       )
+
+      SELECT
+        d.id || '_temp' as sensor_id,
+        d.label as name,
+        'temperature' as type,
+        (point).value as value,
+        '°C' as unit,
+        (point).time as timestamp
+        FROM downsampled_temp ds
+        JOIN device d ON d.id = ds.device_id
+        CROSS JOIN LATERAL unnest(ds.sampled) AS point
+
+      UNION ALL
+
+      SELECT
+        d.id || '_hum' as sensor_id,
+        d.label as name,
+        'humidity' as type,
+        (point).value as value,
+        '%' as unit,
+        (point).time as timestamp
+        FROM downsampled_hum ds
+        JOIN device d ON d.id = ds.device_id
+        CROSS JOIN LATERAL unnest(ds.sampled) AS point;

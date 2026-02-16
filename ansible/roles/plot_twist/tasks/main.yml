@@ -1,0 +1,107 @@
+---
+- name: Set facts
+  ansible.builtin.set_fact:
+    user_name: plot-twist
+    group_name: plot-twist
+    src_dir: '/usr/local/src'
+    bin_dir: '/usr/local/bin'
+    asset_dir: '/usr/local/share/plot-twist'
+    repo_folder: 'plot-twist'
+    service: plot-twist.service
+
+- name: Ensure user with correct settings exists
+  ansible.builtin.include_role:
+    name: user_creator
+  vars:
+    name: '{{ user_name }}'
+    user_groups: '{{ group_name }}'
+
+- name: Clone Plot Twist
+  ansible.builtin.include_role:
+    name: git_installer
+  vars:
+    git_repo_url: '{{ git_repositories.plot_twist }}'
+    git_repo_name: '{{ repo_folder }}'
+    git_repo_destination: '{{ src_dir }}'
+    git_repo_destination_owner: '{{ user_name }}'
+    git_repo_destination_group: '{{ group_name }}'
+
+- name: Remove .git
+  become: true
+  ansible.builtin.file:
+    path: '{{ src_dir }}/{{ repo_folder }}/.git'
+    state: absent
+
+- name: Build the application
+  become: true
+  ansible.builtin.shell: |
+    go build .
+  args:
+    chdir: '{{ src_dir }}/{{ repo_folder }}'
+  register: pt_build
+  changed_when: pt_build.rc != 0
+
+- name: Stop systemd unit
+  become: true
+  ansible.builtin.systemd:
+    state: stopped
+    name: '{{ service }}'
+  ignore_errors: true
+
+- name: Copy binary
+  become: true
+  ansible.builtin.copy:
+    remote_src: true
+    src: '{{ src_dir }}/{{ repo_folder }}/plot-twist'
+    dest: '{{ bin_dir }}/plot-twist'
+    mode: '0755'
+
+- name: Copy templates and other assets
+  become: true
+  ansible.builtin.copy:
+    remote_src: true
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: '{{ user_name }}'
+    group: '{{ group_name }}'
+    mode: '0755'
+  loop:
+    - src: '{{ src_dir }}/{{ repo_folder }}/templates/'
+      dest: '{{ asset_dir }}/templates/'
+
+- name: Copy templated files to host
+  become: true
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '{{ asset_dir }}/{{ item }}'
+    owner: '{{ user_name }}'
+    group: '{{ group_name }}'
+    mode: '0640'
+  with_items:
+    - config.yaml
+
+- name: Create systemd service unit
+  become: true
+  ansible.builtin.copy:
+    dest: '/etc/systemd/system/{{ service }}'
+    content: |
+      [Unit]
+      Description=Service for running Plot Twist application
+      After=syslog.target
+      [Service]
+      WorkingDirectory={{ asset_dir }}
+      Type=simple
+      Restart=on-failure
+      ExecStart={{ bin_dir }}/plot-twist -config {{ asset_dir }}/config.yaml
+      User={{ user_name }}
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0644'
+
+- name: Start systemd unit
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+    state: restarted
+    name: '{{ service }}'
+    enabled: true

@@ -1,0 +1,6 @@
+---
+- name: Setup Plot Twist
+  hosts:
+    - web
+  roles:
+    - plot_twist

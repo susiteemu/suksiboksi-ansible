@@ -8,3 +8,4 @@ git_repositories:
     dbg: git@github.com:susiteemu/dish-bash-go.git
     ruuvi_img: git@github.com:susiteemu/go-kindle-img.git
     temperatures: git@github.com:susiteemu/temperatures.git
+    plot_twist: https://codeberg.org/susiteemu/plot-twist.git

@@ -18,6 +18,11 @@ podman:
 dish-bash-go:
     @ansible-playbook -i inventories/production -D dish-bash-go.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
 
+# Run Dish! Bash! Go! playbook
+plot-twist:
+    @ansible-playbook -i inventories/production -D plot-twist.yml --vault-password-file ./scripts/vault-pass --ask-become-pass
+
+
 # Run Grafana playbook
 beszel:
     @ansible-playbook -i inventories/production -D beszel.yml --vault-password-file ./scripts/vault-pass --ask-become-pass

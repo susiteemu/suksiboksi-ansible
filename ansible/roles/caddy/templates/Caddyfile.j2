@@ -1,7 +1,7 @@
 
 # Caddyfile V2.0 config file
 
-{{ caddy.grafana.domain }} {
+{{ caddy.plot_twist.domain }} {
   tls internal
   encode zstd gzip
 
@@ -16,7 +16,7 @@
       -Server
    }
 
-  reverse_proxy {{ caddy.services.grafana }} {
+  reverse_proxy {{ caddy.services.plot_twist }} {
       header_up X-Real-IP {remote_host}
   }
 }
